@@ -113,6 +113,10 @@
                             content: result.data.content,
                             originalName: file.name
                         });
+                        
+                        // Sofort Download-Button für diese Datei hinzufügen
+                        addDownloadButton(translationResults.length - 1);
+                        
                         showStatus(`✅ Datei ${i + 1}/${selectedFiles.length} erfolgreich übersetzt!`, 'success');
                     } else {
                         throw new Error(result.error || 'Unbekannter Fehler');
@@ -130,29 +134,35 @@
             }
             
             showStatus(`🎉 Alle ${translationResults.length} Dateien erfolgreich übersetzt!`, 'success');
-            displayResults();
             document.getElementById('translateBtn').disabled = false;
         }
 
-        function displayResults() {
+        function addDownloadButton(index) {
             const results = document.getElementById('results');
+            const result = translationResults[index];
             
-            if (translationResults.length === 0) {
-                results.innerHTML = '<p style="color: #dc3545;">Keine erfolgreichen Übersetzungen</p>';
-                return;
+            // Erstelle Download-Container falls noch nicht vorhanden
+            if (!document.getElementById('downloadContainer')) {
+                const container = document.createElement('div');
+                container.id = 'downloadContainer';
+                container.innerHTML = '<h3 style="color: #00FF41; margin-bottom: 20px;">📥 Downloads bereit:</h3>';
+                results.appendChild(container);
             }
-
-            results.innerHTML = `
-                <h3 style="color: #00FF41; margin-bottom: 20px;">📥 Downloads bereit:</h3>
-                ${translationResults.map((result, index) => `
-                    <div style="margin: 10px 0; padding: 15px; background: linear-gradient(90deg, #00FF41 0%, #00FFFF 100%); border-radius: 10px; box-shadow: 0 0 15px rgba(0, 255, 65, 0.3); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
-                        <span style="color: #0D2060; font-weight: bold; font-family: Arial, sans-serif;">📄 ${result.filename}</span>
-                        <button onclick="downloadFile(${index})" style="padding: 8px 16px; background: #0D2060; color: white; border: none; border-radius: 5px; cursor: pointer; font-family: Arial, sans-serif; font-weight: bold;">
-                            💾 Download
-                        </button>
-                    </div>
-                `).join('')}
+            
+            const downloadContainer = document.getElementById('downloadContainer');
+            
+            // Erstelle Download-Button für diese Datei
+            const downloadDiv = document.createElement('div');
+            downloadDiv.style.cssText = 'margin: 10px 0; padding: 15px; background: linear-gradient(90deg, #00FF41 0%, #00FFFF 100%); border-radius: 10px; box-shadow: 0 0 15px rgba(0, 255, 65, 0.3); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;';
+            
+            downloadDiv.innerHTML = `
+                <span style="color: #0D2060; font-weight: bold; font-family: Arial, sans-serif;">📄 ${result.filename}</span>
+                <button onclick="downloadFile(${index})" style="padding: 8px 16px; background: #0D2060; color: white; border: none; border-radius: 5px; cursor: pointer; font-family: Arial, sans-serif; font-weight: bold;">
+                    💾 Download
+                </button>
             `;
+            
+            downloadContainer.appendChild(downloadDiv);
         }
 
         function fileToBase64(file) {
