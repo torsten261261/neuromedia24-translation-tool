@@ -14,8 +14,8 @@
         
         <div style="padding: 40px 30px;">
             <div style="background: #f8f9fa; border-radius: 15px; padding: 30px; margin-bottom: 30px; border: 2px dashed #FF45EF; box-shadow: 0 0 20px rgba(255, 69, 239, 0.1);">
-                <h3 style="margin-bottom: 20px; color: #0D2060; font-family: Arial, sans-serif;">📁 Office-Dateien hochladen (max. 12)</h3>
-                <input type="file" id="fileInput" multiple accept=".docx,.pptx" max="12" style="width: 100%; padding: 15px; border: 2px solid #FF45EF; border-radius: 10px; font-family: Arial, sans-serif; background: linear-gradient(90deg, #FF45EF 0%, #00FFFF 100%); color: white; font-weight: bold;">
+                <h3 style="margin-bottom: 20px; color: #0D2060; font-family: Arial, sans-serif;">📁 Office-Dateien hochladen</h3>
+                <input type="file" id="fileInput" multiple accept=".docx,.pptx" style="width: 100%; padding: 15px; border: 2px solid #FF45EF; border-radius: 10px; font-family: Arial, sans-serif; background: linear-gradient(90deg, #FF45EF 0%, #00FFFF 100%); color: white; font-weight: bold;">
                 <div id="fileList" style="margin-top: 20px;"></div>
             </div>
             
@@ -43,9 +43,10 @@
 
     <script>
         let selectedFiles = [];
+        let translationResults = [];
 
         document.getElementById('fileInput').addEventListener('change', function(e) {
-            selectedFiles = Array.from(e.target.files).slice(0, 12);
+            selectedFiles = Array.from(e.target.files);
             displayFileList();
             document.getElementById('translateBtn').disabled = selectedFiles.length === 0;
         });
@@ -79,6 +80,7 @@
             document.getElementById('translateBtn').disabled = true;
             
             results.innerHTML = '';
+            translationResults = [];
             
             for (let i = 0; i < selectedFiles.length; i++) {
                 const file = selectedFiles[i];
@@ -106,7 +108,11 @@
                     const result = await response.json();
                     
                     if (result.success) {
-                        addDownloadLink(result.data.filename, result.data.content);
+                        translationResults.push({
+                            filename: result.data.filename,
+                            content: result.data.content,
+                            originalName: file.name
+                        });
                         showStatus(`✅ Datei ${i + 1}/${selectedFiles.length} erfolgreich übersetzt!`, 'success');
                     } else {
                         throw new Error(result.error || 'Unbekannter Fehler');
@@ -117,13 +123,36 @@
                     showStatus(`❌ Fehler bei Datei ${file.name}: ${error.message}`, 'error');
                 }
                 
+                // Pause zwischen Übersetzungen
                 if (i < selectedFiles.length - 1) {
                     await new Promise(resolve => setTimeout(resolve, 1500));
                 }
             }
             
-            showStatus(`🎉 Alle ${selectedFiles.length} Dateien erfolgreich übersetzt!`, 'success');
+            showStatus(`🎉 Alle ${translationResults.length} Dateien erfolgreich übersetzt!`, 'success');
+            displayResults();
             document.getElementById('translateBtn').disabled = false;
+        }
+
+        function displayResults() {
+            const results = document.getElementById('results');
+            
+            if (translationResults.length === 0) {
+                results.innerHTML = '<p style="color: #dc3545;">Keine erfolgreichen Übersetzungen</p>';
+                return;
+            }
+
+            results.innerHTML = `
+                <h3 style="color: #00FF41; margin-bottom: 20px;">📥 Downloads bereit:</h3>
+                ${translationResults.map((result, index) => `
+                    <div style="margin: 10px 0; padding: 15px; background: linear-gradient(90deg, #00FF41 0%, #00FFFF 100%); border-radius: 10px; box-shadow: 0 0 15px rgba(0, 255, 65, 0.3); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                        <span style="color: #0D2060; font-weight: bold; font-family: Arial, sans-serif;">📄 ${result.filename}</span>
+                        <button onclick="downloadFile(${index})" style="padding: 8px 16px; background: #0D2060; color: white; border: none; border-radius: 5px; cursor: pointer; font-family: Arial, sans-serif; font-weight: bold;">
+                            💾 Download
+                        </button>
+                    </div>
+                `).join('')}
+            `;
         }
 
         function fileToBase64(file) {
@@ -135,27 +164,10 @@
             });
         }
 
-        function addDownloadLink(filename, base64Content) {
-            const results = document.getElementById('results');
-            
-            const downloadDiv = document.createElement('div');
-            downloadDiv.style.cssText = 'margin: 10px 0; padding: 15px; background: linear-gradient(90deg, #00FF41 0%, #00FFFF 100%); border-radius: 10px; box-shadow: 0 0 15px rgba(0, 255, 65, 0.3);';
-            
-            downloadDiv.innerHTML = `
-                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
-                    <span style="color: #0D2060; font-weight: bold; font-family: Arial, sans-serif;">📄 ${filename}</span>
-                    <button onclick="downloadFile('${filename}', '${base64Content}')" style="padding: 8px 16px; background: #0D2060; color: white; border: none; border-radius: 5px; cursor: pointer; font-family: Arial, sans-serif;">
-                        💾 Download
-                    </button>
-                </div>
-            `;
-            
-            results.appendChild(downloadDiv);
-        }
-
-        function downloadFile(filename, base64Content) {
+        function downloadFile(index) {
             try {
-                const byteCharacters = atob(base64Content);
+                const result = translationResults[index];
+                const byteCharacters = atob(result.content);
                 const byteNumbers = new Array(byteCharacters.length);
                 for (let i = 0; i < byteCharacters.length; i++) {
                     byteNumbers[i] = byteCharacters.charCodeAt(i);
@@ -166,16 +178,18 @@
                 const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = filename;
+                a.download = result.filename;
                 a.style.display = 'none';
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
                 window.URL.revokeObjectURL(url);
                 
+                showStatus(`✅ ${result.filename} wurde heruntergeladen!`, 'success');
+                
             } catch (error) {
                 console.error('Download error:', error);
-                showStatus('Download-Fehler: ' + error.message, 'error');
+                showStatus('❌ Download-Fehler: ' + error.message, 'error');
             }
         }
 
